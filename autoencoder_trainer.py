@@ -9,6 +9,7 @@ while keeping track of its losses along epochs.
 
 
 # TODO:
+# - [ ] store noised loss altogether with denoised loss along epochs
 # - [ ] save separated checkpoint for each successful validation
 # - [ ] add specific error texts for:
 #     - [ ] output dimensions not matching the expected (== input dimensions)
@@ -142,8 +143,10 @@ class AutoencoderTrainer(object):
         samples = len(loader)
         
         if backpropagate:
+            # Make sure dropout and grads are on for training
             self.model.train()
-        else:            
+        else:
+            # Otherwise, turn off dropout and grads
             self.model.eval()
             
         if self.train_on_gpu: self.model = self.model.cuda()
@@ -197,8 +200,11 @@ class AutoencoderTrainer(object):
 
         Returns:
             float: Test loss.
-        """            
-        return self._loss(self.loader['test'])
+        """
+        with torch.no_grad(): 
+            loss_test = self._loss(self.loader['test'])
+            
+        return loss_test
     
     
     def validate(self):
@@ -209,7 +215,9 @@ class AutoencoderTrainer(object):
             float: Validation loss.
             bool: True if found the lowest validation loss.
         """
-        loss_valid = self._loss(self.loader['valid'])
+        with torch.no_grad():
+            loss_valid = self._loss(self.loader['valid'])
+            
         is_validated = (loss_valid < self.loss_valid_best)
         if loss_valid < self.loss_valid_best:
             self.loss_valid_best = loss_valid
