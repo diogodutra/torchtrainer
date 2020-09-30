@@ -8,16 +8,17 @@ while keeping track of its losses along epochs.
 """
 
 
-# TODO:
+# TO DO:
 # - [ ] store noised loss altogether with denoised loss along epochs
-# - [ ] save separated checkpoint for each successful validation
 # - [ ] add specific error texts for:
 #     - [ ] output dimensions not matching the expected (== input dimensions)
 #     - [ ] train, valid and test dataset are not properly loaded
 # 
 # TO TEST:
-# - [ ] calculate validation before training if loss_valid_best is Infinite (to avoid always saving first trained model)
-# - [ ] throw warning if max_epochs_total < max_epochs_without_valid
+# - [x] embedded losses plot function
+# - [x] save separated checkpoint for each successful validation
+# - [x] calculate validation before training if loss_valid_best is Infinite (to avoid always saving first trained model)
+# - [x] throw warning if max_epochs_total < max_epochs_without_valid
 # - [x] create run function that executes run_epochs until failed validated after max_epochs
 # - [x] add kwarg path to output saved model (ie: path_output = './models/checkpoint.pth')
 # - [x] store losses across epochs for plot
@@ -77,14 +78,14 @@ class AutoencoderTrainer(object):
     path_train = None #: (str or list of str): paths to the training dataset.
     path_valid = None #: (str or list of str): paths to the validation dataset.
     dataset_class = Dataset #: (torch Dataset, optional): class used to instantiate train, valid and test Dataset.
-    save_file = 'checkpoint.pth' #: (str): path and filename to save the model everytime we have a new lowest validation loss.
+    save_prefix = 'checkpoint' #: (str): path and filename prefix to save the model everytime we have a new lowest validation loss.
     loss_valid_best = float("Inf") #: (float, default Inf): initial validation loss.
     optimizer_function = torch.optim.Adam #: (torch optim, default Adam): optimizer function to calculate optimum weights correction.
     optimizer_kwargs = {'lr': 0.0001} #: (optimizer kwrags, default {'lr': 0.0001}): optimizer kwrags parameters.
     epoch = 0 #: (int, default 0): initial epoch.
     loss_valid = dict() #: (dict): validation loss for each epoch.
     loss_train = dict() #: (dict): training loss for each epoch.
-    valid_epochs = [] #: (list of int): epochs which the validation loss reached its new lowest record value.
+    saved_models = dict() #: (dict of str): path and filenames to saved models at each validated epoch.
     
     
     def __init__(self, **kwargs):
@@ -120,8 +121,9 @@ class AutoencoderTrainer(object):
     
     
     def best_model(self):
-        """Returns the torch model with the lowest validation loss."""
-        return torch.load(self.save_file)
+        """Returns the torch model with at the latest saved epoch."""
+        best_model_save_file = self.saved_models[sorted(list(self.saved_models.keys()))[-1]]
+        return torch.load(best_model_save_file)
     
     
     def last_model(self):
@@ -221,7 +223,9 @@ class AutoencoderTrainer(object):
         is_validated = (loss_valid < self.loss_valid_best)
         if loss_valid < self.loss_valid_best:
             self.loss_valid_best = loss_valid
-            torch.save(self.model, self.save_file)
+            save_file = self.save_prefix + f'_epoch{self.epoch:04d}.pth'
+            self.saved_models[self.epoch] = save_file
+            torch.save(self.model, save_file)
             
         return loss_valid, is_validated
     
@@ -253,7 +257,6 @@ class AutoencoderTrainer(object):
         for epoch in range(self.epoch, self.epoch + epochs):
             self.loss_train[epoch] = self.train()
             self.loss_valid[epoch], is_validated = self.validate()
-            if is_validated: self.valid_epochs.append(epoch)
             
             if verbose: self._print_statistics(epoch, is_validated)
             
@@ -277,7 +280,7 @@ class AutoencoderTrainer(object):
         """
         
         if max_epochs_total < max_epochs_without_valid:
-            warnings.warn(f'It will execute all "max_epochs_without_valid" ({max_epochs_without_valid}) epochs because it is defined as a number greater than "max_epochs_total" ({max_epochs_total}).')
+            warnings.warn(f'It will execute all "max_epochs_total" ({max_epochs_total}) epochs because it is defined as a number smaller than "max_epochs_without_valid" ({max_epochs_without_valid}).')
 
         if verbose: self._print_header()
             
@@ -287,7 +290,7 @@ class AutoencoderTrainer(object):
             
         for epoch in range(self.epoch, self.epoch + max_epochs_total):
             self.run_epochs(1, verbose_header=False)
-            is_validated = (epoch in self.valid_epochs)
+            is_validated = (epoch in self.saved_models.keys())
             if is_validated: epoch_last_valid = epoch
             
             reached_max_without_valid = (epoch - epoch_last_valid > max_epochs_without_valid)
@@ -311,11 +314,14 @@ class AutoencoderTrainer(object):
                      list(loss_dict.values()),
                     label=loss_type)
 
-        plt.scatter(trainer.valid_epochs,
-                 [loss_dict[e] for e in trainer.valid_epochs],
+        valid_epochs = list(self.saved_models.keys())
+        plt.scatter(valid_epochs,
+                 [loss_dict[e] for e in valid_epochs],
                  label='saved', c='r')
 
         plt.legend()
+        plt.yscale("log")
+        plt.xscale("log")
         plt.xlabel('epochs')
         plt.ylabel('loss')
         plt.gcf().patch.set_facecolor('white')
