@@ -82,7 +82,7 @@ class AutoencoderTrainer(object):
     loss_valid_best = float("Inf") #: (float, default Inf): initial validation loss.
     optimizer_function = torch.optim.Adam #: (torch optim, default Adam): optimizer function to calculate optimum weights correction.
     optimizer_kwargs = {'lr': 0.0001} #: (optimizer kwrags, default {'lr': 0.0001}): optimizer kwrags parameters.
-    epoch = 0 #: (int, default 0): initial epoch.
+    epoch = 1 #: (int, default 1): initial epoch.
     loss_valid = dict() #: (dict): validation loss for each epoch.
     loss_train = dict() #: (dict): training loss for each epoch.
     saved_models = dict() #: (dict of str): path and filenames to saved models at each validated epoch.
