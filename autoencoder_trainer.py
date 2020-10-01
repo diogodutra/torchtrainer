@@ -268,11 +268,11 @@ class AutoencoderTrainer(object):
     
     
     def run(self, *, max_epochs_total=1000, max_epochs_without_valid=100, verbose=True):
-        """Runs train until reached maximum amount of epochs without better validation loss.
+        """Trains and saves the every new lowest validated model until it reached maximum amount of epochs without better validation loss.
 
         Args:
-            max_epochs_total (int, default 1000): Maximum epochs to run before leaving the train loop.
-            max_epochs_without_valid (int, default 100): Maximum epochs to run without decrease of the best validation loss.
+            max_epochs_total (int, default 1000): Maximum total of epochs to run before leaving the train loop.
+            max_epochs_without_valid (int, default 100): Maximum epochs to run without any decrease of the best record validation loss.
             verbose (bool, default True): Condition to print losses along the epochs.
 
         Returns:
@@ -300,7 +300,7 @@ class AutoencoderTrainer(object):
                 
                 
         if not reached_max_without_valid:
-            print('Best mode not found because "run" finished too early. Consider increasing "max_epochs_total" argument and executing "run" again.')
+            print('Best model not found because "run" finished too early. Consider increasing "max_epochs_total" argument and executing "run" again.')
                 
                 
         return self.best_model()
