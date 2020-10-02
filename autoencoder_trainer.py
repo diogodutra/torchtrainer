@@ -65,7 +65,73 @@ class AddGaussianNoise(object):
 
 
 class AutoencoderTrainer(object):
-    """AutoEncoder Trainer for torch model."""
+    """AutoEncoder Trainer for torch model.
+    
+    Example of usage on MNIST dataset:
+        from torchvision import datasets
+        import torch.nn as nn
+        import torch.nn.functional as F
+        import torch
+        import torchvision.transforms as transforms
+
+        import sys
+        sys.path.append('..//..//repos//toolkit')
+        from torchtrainer.autoencoder_trainer import AutoencoderTrainer
+        
+        
+        # convert data to torch.FloatTensor
+        transform = transforms.ToTensor()
+
+        # load the training and test datasets
+        train_data = datasets.MNIST(root='data', train=True,
+                                           download=True, transform=transform)
+        test_data = datasets.MNIST(root='data', train=False,
+                                          download=True, transform=transform)
+                                          
+                                          
+        # define the NN architecture
+        class Autoencoder(nn.Module):
+            def __init__(self, encoding_dim):
+                super(Autoencoder, self).__init__()
+                ## encoder ##
+                # linear layer (784 -> encoding_dim)
+                self.fc1 = nn.Linear(28 * 28, encoding_dim)
+
+                ## decoder ##
+                # linear layer (encoding_dim -> input size)
+                self.fc2 = nn.Linear(encoding_dim, 28*28)
+
+
+            def forward(self, x):
+                # flatten images to array
+                original_size = x.shape
+                batch_size = x.size(0)
+                x = x.view(batch_size, -1)
+                # add layer, with relu activation function
+                x = F.relu(self.fc1(x))
+                # output layer (sigmoid for scaling from 0 to 1)
+                x = torch.sigmoid(self.fc2(x))
+                # reshape images to their original sizes
+                x = x.reshape(original_size)
+                return x
+
+
+        # initialize the NN
+        encoding_dim = 32
+        model = Autoencoder(encoding_dim)
+        
+        std = .1
+        noise_function = lambda x: x + torch.randn(x.size()) * std # add gaussian noise
+
+        trainer = AutoencoderTrainer(model=model,
+                                     dataset_train=train_data,
+                                     dataset_valid=train_data,
+                                     dataset_test=test_data,
+                                     noise_transform=noise_function)
+                                     
+        best_model = trainer.fit()
+        trainer.plot_losses()        
+    """
     
     transform = [] #: (torch transforms, optional): Transformations to be applied across all dataset (train, valid and test).
     noise_transform = AddGaussianNoise() #: (torch function, default AddGaussianNoise): Function used to add noise to the clear data.
