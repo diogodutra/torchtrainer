@@ -104,16 +104,23 @@ class AutoencoderTrainer(object):
         
         self.optimizer = self.optimizer_function(self.model.parameters(), **self.optimizer_kwargs)
         
-        self.loss_valid_best = self._loss(self.loader['valid'])
+#         self.loss_valid_best = self._loss(self.loader['valid'])
             
             
     def _create_dataset(self):
         for dataset_type in ['train', 'test', 'valid']:
-            path = getattr(self, 'path_' + dataset_type)
-            if path is None:
-                raise ValueError('Missing path to', dataset_type, 'dataset.')
+            dataset_name = 'dataset_' + dataset_type
+            print(dataset_name)
+            print(self.__dict__.keys())
+            if dataset_name in self.__dict__.keys():
+                self.dataset[dataset_type] = getattr(self, dataset_name)
+                
             else:
-                self.dataset[dataset_type] = self.dataset_class(root=path, transform=self.transform)
+                path = getattr(self, 'path_' + dataset_type)
+                if path is None:
+                    raise ValueError('Missing path to', dataset_type, 'dataset.')
+                else:
+                    self.dataset[dataset_type] = self.dataset_class(root=path, transform=self.transform)
                         
             
     def _create_loader(self, dataset):
